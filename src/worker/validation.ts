@@ -12,14 +12,22 @@ export function normalizeTargetUrl(value: unknown): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > MAX_TARGET_URL_LENGTH) return null;
 
+  let url: URL;
   try {
-    const url = new URL(trimmed);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    if (url.username || url.password) return null;
-    return url.href.length <= MAX_TARGET_URL_LENGTH ? url.href : null;
+    url = new URL(trimmed);
   } catch {
-    return null;
+    try {
+      // The UI also auto-prefixes, but accepting this at the API level keeps
+      // older cached clients and API callers working.
+      url = new URL(`https://${trimmed}`);
+    } catch {
+      return null;
+    }
   }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  return url.href.length <= MAX_TARGET_URL_LENGTH ? url.href : null;
 }
 
 export function normalizeRedeemCode(value: unknown): string | null {

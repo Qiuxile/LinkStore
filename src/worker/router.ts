@@ -1,3 +1,4 @@
+import { recordAudit } from "./audit";
 import { ApiError, apiError } from "./http";
 import { handleAdmin } from "./admin";
 import { handleRedeem } from "./redeem";
@@ -23,6 +24,14 @@ export async function handleApi(
     return apiError(404, "NOT_FOUND");
   } catch (error) {
     if (error instanceof ApiError) {
+      if (path.startsWith("/api/admin/") && request.method !== "GET") {
+        await recordAudit(
+          env,
+          request,
+          "admin_write_failed",
+          `stage=handler;status=${error.status};code=${error.code}`,
+        );
+      }
       return apiError(error.status, error.code);
     }
     // Never log request bodies, submitted codes or secrets.
@@ -30,6 +39,9 @@ export async function handleApi(
       "api_error",
       error instanceof Error ? error.message : "unknown error",
     );
+    if (path.startsWith("/api/admin/") && request.method !== "GET") {
+      await recordAudit(env, request, "admin_write_failed", "stage=handler;code=INTERNAL");
+    }
     return apiError(500, "INTERNAL_ERROR");
   }
 }

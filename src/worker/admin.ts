@@ -90,20 +90,42 @@ function unauthorized(): Response {
 
 function hasSameOrigin(request: Request): boolean {
   const origin = request.headers.get("Origin");
-  if (!origin) return false;
-  try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
+  if (origin) {
+    try {
+      if (new URL(origin).origin === new URL(request.url).origin) return true;
+    } catch {
+      // Fall through to browser-enforced headers.
+    }
   }
+
+  // Some reverse proxies rewrite Origin while the browser still marks the
+  // request as same-origin. A custom header is also a valid CSRF barrier:
+  // cross-origin JS cannot set it without a CORS preflight, which this API
+  // does not allow.
+  if (request.headers.get("Sec-Fetch-Site") === "same-origin") return true;
+  return request.headers.get("X-Requested-With") === "LinkStore";
 }
 
 async function authorizeWrite(
   request: Request,
   env: Env,
 ): Promise<Response | null> {
-  if (!(await authenticateAdmin(request, env))) return unauthorized();
-  if (!hasSameOrigin(request)) return apiError(403, "INVALID_ORIGIN");
+  if (!(await authenticateAdmin(request, env))) {
+    await recordAudit(env, request, "admin_write_failed", "stage=auth");
+    return unauthorized();
+  }
+  if (!hasSameOrigin(request)) {
+    const origin = request.headers.get("Origin") ?? "no-origin";
+    const fetchSite = request.headers.get("Sec-Fetch-Site") ?? "no-fetch-site";
+    console.warn("admin_write_origin_rejected", origin, fetchSite);
+    await recordAudit(
+      env,
+      request,
+      "admin_write_failed",
+      `stage=csrf;fetch_site=${fetchSite};origin=${origin.slice(0, 180)}`,
+    );
+    return apiError(403, "INVALID_ORIGIN");
+  }
   return null;
 }
 

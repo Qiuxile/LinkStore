@@ -54,7 +54,11 @@ async function submit(): Promise<void> {
       throw new Error("Unsafe admin redirect");
     }
 
-    if (result.type === "redirect" && result.targetUrl && isSafeHttpUrl(result.targetUrl)) {
+    if (
+      result.type === "redirect" &&
+      result.targetUrl &&
+      isSafeHttpUrl(result.targetUrl)
+    ) {
       window.location.assign(result.targetUrl);
       return;
     }
@@ -72,10 +76,7 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="home">
-    <div class="home-orbit home-orbit-one" aria-hidden="true"></div>
-    <div class="home-orbit home-orbit-two" aria-hidden="true"></div>
-
-    <section class="redeem-card" aria-labelledby="linkstore-title">
+    <section class="access" aria-labelledby="linkstore-title">
       <div class="brand redeem-brand">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
@@ -86,7 +87,7 @@ async function submit(): Promise<void> {
         <span id="linkstore-title">LinkStore</span>
       </div>
 
-      <form class="redeem-form" novalidate @submit.prevent="submit">
+      <form class="redeem-form" novalidate autocomplete="off" @submit.prevent="submit">
         <label class="sr-only" for="redeem-code">兑换码</label>
         <div class="redeem-control" :class="{ 'has-error': errorMessage }">
           <input
@@ -107,22 +108,7 @@ async function submit(): Promise<void> {
           />
           <button class="redeem-submit" type="submit" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
-            <span>{{ isSubmitting ? "验证中" : "兑换并前往" }}</span>
-            <svg
-              v-if="!isSubmitting"
-              class="submit-arrow"
-              viewBox="0 0 20 20"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 10h11m-4-4 4 4-4 4"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <span>{{ isSubmitting ? "验证中" : "兑换" }}</span>
           </button>
         </div>
         <p class="redeem-error" role="alert" aria-live="polite">
@@ -135,86 +121,38 @@ async function submit(): Promise<void> {
 
 <style scoped>
 .home {
-  position: relative;
   display: grid;
   min-height: 100svh;
-  padding: 28px;
-  overflow: hidden;
+  padding: 32px;
   place-items: center;
-  background:
-    radial-gradient(circle at 16% 18%, rgba(198, 229, 214, 0.62), transparent 32%),
-    radial-gradient(circle at 84% 82%, rgba(227, 213, 181, 0.54), transparent 34%),
-    linear-gradient(145deg, #f7f5ef 0%, #f0eee5 52%, #f5f2e9 100%);
+  background: #050505;
 }
 
-.home::after {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(27, 44, 34, 0.09) 0.65px, transparent 0.65px);
-  background-size: 18px 18px;
-  content: "";
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), transparent 60%);
-  pointer-events: none;
-}
-
-.home-orbit {
-  position: absolute;
-  border: 1px solid rgba(11, 107, 79, 0.13);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.home-orbit-one {
-  width: min(78vw, 760px);
-  aspect-ratio: 1;
-  top: -58%;
-  right: -18%;
-}
-
-.home-orbit-two {
-  width: min(58vw, 530px);
-  aspect-ratio: 1;
-  bottom: -46%;
-  left: -16%;
-  border-color: rgba(126, 102, 55, 0.12);
-}
-
-.redeem-card {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 430px);
-  padding: 42px 38px 32px;
-  border: 1px solid rgba(255, 255, 255, 0.84);
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 28px 70px rgba(42, 54, 45, 0.12);
-  backdrop-filter: blur(22px);
-  animation: card-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-@keyframes card-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
+.access {
+  width: min(100%, 440px);
 }
 
 .redeem-brand {
-  justify-content: center;
-  margin-bottom: 34px;
+  margin-bottom: 40px;
+  color: #f5f5f5;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .redeem-brand .brand-mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  background: transparent;
+  color: #f5f5f5;
+  box-shadow: none;
 }
 
 .redeem-brand .brand-mark svg {
-  width: 21px;
-  height: 21px;
+  width: 16px;
+  height: 16px;
 }
 
 .redeem-form {
@@ -226,127 +164,113 @@ async function submit(): Promise<void> {
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 6px;
-  border: 1px solid rgba(23, 33, 28, 0.16);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 3px 10px rgba(28, 40, 33, 0.04);
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+  padding: 4px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #080808;
+  transition: border-color 130ms ease;
 }
 
 .redeem-control:focus-within {
-  border-color: rgba(11, 107, 79, 0.58);
-  box-shadow:
-    0 0 0 4px rgba(11, 107, 79, 0.09),
-    0 6px 18px rgba(28, 40, 33, 0.07);
+  border-color: #f5f5f5;
 }
 
 .redeem-control.has-error {
-  border-color: rgba(169, 61, 61, 0.5);
+  border-color: #777777;
 }
 
 .redeem-input {
   width: 100%;
   min-width: 0;
-  height: 46px;
-  padding: 0 8px 0 12px;
+  height: 44px;
+  padding: 0 10px;
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--ink);
-  font-size: 16px;
-  letter-spacing: 0.005em;
+  color: #f5f5f5;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }
 
 .redeem-input::placeholder {
-  color: #929b95;
+  color: #5c5c5c;
+  font-family: var(--font-sans);
   letter-spacing: 0;
 }
 
 .redeem-input:disabled {
-  opacity: 0.62;
+  opacity: 0.5;
 }
 
 .redeem-submit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 124px;
-  height: 46px;
+  gap: 7px;
+  min-width: 86px;
+  height: 44px;
   flex: none;
-  padding: 0 15px;
-  border: 0;
-  border-radius: 11px;
-  background: var(--accent);
-  box-shadow: 0 8px 18px rgba(11, 107, 79, 0.2);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 650;
+  padding: 0 16px;
+  border: 1px solid #f5f5f5;
+  border-radius: 2px;
+  background: #f5f5f5;
+  color: #050505;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   transition:
-    background-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    background-color 130ms ease,
+    color 130ms ease;
 }
 
 .redeem-submit:hover:not(:disabled) {
-  background: var(--accent-strong);
-  box-shadow: 0 10px 22px rgba(11, 107, 79, 0.26);
-}
-
-.redeem-submit:active:not(:disabled) {
-  transform: translateY(1px);
+  background: #ffffff;
 }
 
 .redeem-submit:disabled {
-  opacity: 0.8;
+  opacity: 0.55;
 }
 
-.submit-arrow {
-  width: 17px;
-  height: 17px;
-  margin-left: 1px;
+.redeem-submit .spinner {
+  width: 13px;
+  height: 13px;
+  border-width: 1px;
 }
 
 .redeem-error {
-  min-height: 20px;
-  margin: 12px 4px 0;
-  color: var(--danger);
-  font-size: 13px;
-  line-height: 1.5;
-  text-align: center;
+  min-height: 18px;
+  margin: 10px 1px 0;
+  color: #bdbdbd;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 480px) {
   .home {
-    padding: 20px;
-  }
-
-  .redeem-card {
-    padding: 34px 22px 24px;
-    border-radius: 24px;
+    padding: 22px;
   }
 
   .redeem-brand {
-    margin-bottom: 28px;
+    margin-bottom: 30px;
   }
 
   .redeem-control {
-    flex-direction: column;
     align-items: stretch;
-    padding: 7px;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .redeem-input {
-    height: 44px;
+    height: 42px;
   }
 
   .redeem-submit {
     width: 100%;
-    height: 44px;
+    height: 42px;
   }
 }
 </style>

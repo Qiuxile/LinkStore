@@ -49,7 +49,7 @@ const emit = defineEmits<{
 .confirm-message {
   margin: 0 0 14px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.7;
 }
 </style>

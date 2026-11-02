@@ -6,6 +6,7 @@ const AUDIT_RETENTION = 1000;
 export type AuditEvent =
   | "admin_login"
   | "admin_logout"
+  | "admin_write_failed"
   | "code_create"
   | "code_update"
   | "code_delete";

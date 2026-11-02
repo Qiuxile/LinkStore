@@ -29,6 +29,16 @@ async function request<T>(
   if (init.body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+  if (init.method && !["GET", "HEAD"].includes(init.method.toUpperCase())) {
+    // Custom header CSRF defense; cross-origin JS cannot send this without a
+    // CORS preflight, and the API intentionally exposes no CORS policy.
+    headers.set("X-Requested-With", "LinkStore");
+  }
+
+  const timeoutSignal =
+    typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(20_000)
+      : undefined;
 
   let response: Response;
   try {
@@ -36,6 +46,7 @@ async function request<T>(
       ...init,
       headers,
       credentials: "same-origin",
+      signal: init.signal ?? timeoutSignal,
     });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR");

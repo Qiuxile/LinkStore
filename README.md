@@ -7,6 +7,30 @@
 - 数据库：Cloudflare D1
 - 静态资源：Workers Assets
 - 会话：HMAC-SHA256 签名的 HttpOnly / Secure / SameSite=Strict Cookie
+- 管理码：支持本地脚本自定义或随机生成，只保存 SHA-256 哈希
+- 界面：纯黑白极简主题，无交互背景、无渐变、无发光
+
+## 界面风格
+
+- 全站只使用黑、白、灰三种色阶，强调色为白色。
+- 首页只有品牌、兑换码输入框、提交按钮和错误提示，没有背景动画或装饰。
+- 后台使用细边框、紧凑表格和等宽小标签，保持信息密度与可读性。
+- 按钮、输入框、弹窗、状态标签全部采用直角或小圆角，不使用阴影、玻璃模糊和渐变动画。
+- 移动端自动切换为单列布局。
+
+### 界面预览
+
+首页：
+
+![LinkStore 黑白极简首页](docs/previews/home.png)
+
+后台：
+
+![LinkStore 黑白极简后台](docs/previews/admin.png)
+
+创建弹窗：
+
+![LinkStore 黑白极简创建弹窗](docs/previews/admin-form.png)
 
 ## 最短上线路径
 
@@ -17,7 +41,7 @@
 - [ ] **3. 对远端 D1 执行迁移**
 - [ ] **4. 部署 Worker 与前端资源**
 - [ ] **5. 写入生产 `SESSION_SECRET`**
-- [ ] **6. 运行轮换脚本，生成并保存管理码**
+- [ ] **6. 运行本地脚本，设置自定义管理码**
 - [ ] **7. 打开站点，验证兑换和后台**
 
 对应命令：
@@ -43,8 +67,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 pnpm exec wrangler secret put SESSION_SECRET
 
 # 6
-pnpm admin:rotate
-# 终端只显示一次管理码，立即保存到密码管理器
+pnpm admin:set-code
+# 选择 1) 远端 D1，然后输入两次自定义管理码
 ```
 
 > `database_id` 仍是全零占位值时，`wrangler deploy` 会失败；这是首次部署最常见的错误。
@@ -67,7 +91,11 @@ pnpm admin:rotate
 ├─ frontend/
 │  ├─ src/views/HomeView.vue
 │  ├─ src/views/AdminView.vue
-│  ├─ src/components/   Modal、创建/编辑、明文一次性展示、确认框
+│  ├─ src/components/
+│  │  ├─ ModalShell.vue        通用弹窗容器
+│  │  ├─ CodeFormModal.vue     创建/编辑表单
+│  │  ├─ GeneratedCodeDialog.vue 明文一次性展示
+│  │  └─ ConfirmDialog.vue     删除确认
 │  ├─ src/api.ts
 │  ├─ src/types.ts
 │  ├─ public/_headers   CSP 等静态资源安全响应头
@@ -191,15 +219,24 @@ pnpm exec wrangler secret put SESSION_SECRET
 
 粘贴第一步生成的值。生产环境的 `wrangler.toml` 中不要写这个密钥。
 
-### 6. 初始化管理码
+### 6. 设置自定义管理码
 
 ```bash
-pnpm admin:rotate
+pnpm admin:set-code
 ```
 
-脚本直接更新远端 D1，显示一次新的管理码。保存到密码管理器后关闭终端。
+脚本会先让你选择写入目标：
+
+```text
+1) 远端 D1（Cloudflare 上部署的网站）
+2) 本地 D1（pnpm dev 本地开发）
+```
+
+部署阶段选择 `1`，然后输入两次自定义管理码。管理码长度要求 8–128 个字符，区分大小写，数据库只保存 SHA-256 哈希。
 
 > 管理码不是默认值。未执行此步骤前，`admin_config` 中没有记录，任何输入都不会进入后台；普通兑换码仍可正常使用。
+
+> 自定义管理码的安全性由长度和随机性决定。建议至少 20 个随机字符或 4 个随机词；如果追求最高安全性，使用 `pnpm admin:set-code -- --generate` 生成 256 bit 随机码。
 
 ### 7. 打开站点验证
 
@@ -213,56 +250,109 @@ pnpm admin:rotate
 macOS / Linux / Git Bash：
 
 ```bash
-cp .dev.vars.example .dev.vars
-# 生成并填入 SESSION_SECRET
+# 直接生成并写入，不会把密钥打印到终端
+node -e "require('fs').appendFileSync('.dev.vars','SESSION_SECRET='+require('crypto').randomBytes(32).toString('base64url')+'\n')"
 pnpm db:migrate:local
-pnpm admin:rotate -- --local
+pnpm admin:set-code -- --local
 pnpm dev
 ```
 
-Windows PowerShell：
+Windows PowerShell 同样使用上面的 Node 命令即可，不需要手动打开 `.dev.vars`。
 
-```powershell
-Copy-Item .dev.vars.example .dev.vars
-# 生成随机密钥后，把 .dev.vars 中的占位值替换掉
-node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-pnpm db:migrate:local
-pnpm admin:rotate -- --local
-pnpm dev
-```
+如果 `.dev.vars` 中已经有 `SESSION_SECRET`，不要重复追加；先删除旧行再写入新值。
 
-`pnpm dev` 先构建前端，再执行 `wrangler dev --local-protocol https`，因此 Secure Cookie 可以正常工作。浏览器会提示本地自签名证书，按本地开发流程信任即可。不要用 HTTP 打开本地站点验证后台，否则 `Secure` Cookie 不会被保存。
+`pnpm dev` 先构建前端，再执行 `wrangler dev --local-protocol https`，因此 Secure Cookie 可以正常工作。浏览器会提示本地自签名证书，按本地开发流程信任即可。不要用 HTTP 打开本地站点验证后台，部分浏览器不会保存 `Secure` Cookie。
 
-`pnpm admin:rotate` 默认写远端 D1；加 `-- --local` 才写本地 D1。两条路径都会递增会话版本。
+`pnpm admin:set-code` 不带目标参数时会提示选择本地或远端；加 `-- --local` 写入本地 D1，加 `-- --remote` 写入远端 D1。两条路径都会递增会话版本。脚本在写入本地 D1 前会检查 `.dev.vars` 是否存在有效的 `SESSION_SECRET`，避免设置完后无法登录。
 
-## 管理码轮换与恢复
+## 自定义修改管理码
 
-### 正常轮换
+管理码支持完全自定义，不再强制使用随机串。管理码修改只通过本地脚本完成，不提供公网“改密接口”。
+
+### 推荐用法
 
 ```bash
-pnpm admin:rotate
+pnpm admin:set-code
 ```
 
-脚本会：
+脚本会依次完成：
 
-1. 用 `crypto.randomBytes(32)` 生成 256 bit 管理码；
-2. 计算 SHA-256；
-3. 通过本机 Wrangler 登录态（或环境变量中的 Token）更新远端 D1；
-4. 在同一条 UPSERT 中递增 `session_version` 并更新 `rotated_at`；
-5. 只有更新成功后才在终端显示明文一次。
+1. 询问写入 **本地 D1** 还是 **远端 D1**；
+2. 如果写本地 D1，先检查 `.dev.vars` 中是否存在有效的 `SESSION_SECRET`；
+3. 如果写远端 D1，先检查 `database_id` 是否仍是占位值，并要求再次确认；
+4. 让你输入自定义管理码，并再输入一次确认；
+5. 计算 SHA-256，通过 Wrangler 更新对应 D1；
+6. 同一条 UPSERT 中递增 `session_version` 并更新 `rotated_at`。
 
-旧管理码立即失效，所有旧管理会话也在下一次请求时立即失效。脚本不会把明文写入文件，也不会把明文放进 shell 命令参数。
+管理码要求 8–128 个字符，区分大小写，首尾空白会被去掉。旧管理码立即失效，所有旧后台会话也会立即失效。
+
+### 跳过目标选择
+
+```bash
+# 本地开发 D1
+pnpm admin:set-code -- --local
+
+# 已在 Cloudflare 部署的远端 D1
+pnpm admin:set-code -- --remote
+```
+
+`pnpm admin:rotate` 是同一个脚本的兼容别名。
+
+写远端 D1 时，交互终端会要求输入 `yes` 再继续；非交互环境必须显式添加 `--yes`，避免误改生产数据：
+
+```bash
+pnpm admin:set-code -- --remote --yes
+```
+
+`--yes` 只建议用于确认过的自动化流程。
+
+如果 Windows 终端里没有正常出现自定义管理码输入提示，可以用 PowerShell 的 `Read-Host` 读取后通过 stdin 交给脚本；这样管理码不会进入命令历史，也不需要交互式 TTY：
+
+```powershell
+$code = Read-Host "输入自定义管理码（8-128 字符）"
+$confirm = Read-Host "再次输入确认"
+if ($code -ne $confirm) { throw "两次输入不一致" }
+"$code`n$confirm" | node scripts/rotate-admin-code.mjs --remote --yes
+```
+
+### 生成随机管理码
+
+如果你不想自定义，或想要最高的随机熵：
+
+```bash
+pnpm admin:set-code -- --remote --generate
+```
+
+生成模式使用 `crypto.randomBytes(32)`，即 256 bit 熵，明文只在更新成功后显示一次。
+
+### 自定义管理码的安全边界
+
+- 自定义模式不能保证 128 bit 熵，安全性取决于你输入的码。
+- 建议使用至少 20 个字符，或 4 个随机词，例如：`orbit-mango-river-82-cobalt`。
+- 不建议使用姓名、生日、`admin123`、站点名等可猜测内容。
+- 自定义码只从终端输入读取，不写入文件，也不会作为参数进入 shell 历史；但输入时会显示在当前终端。
+- 如果更看重安全性，使用 `--generate`。
+
+### 为什么后台没有“修改管理码”按钮
+
+管理码是唯一管理凭证。开放公网改密接口会增加会话被盗后永久接管后台的风险，因此修改仍通过本地脚本 + Wrangler/D1 凭证完成。后台本身仍然没有修改管理码的功能。
 
 ### 忘记管理码
 
-直接运行 `pnpm admin:rotate`。这是设计上的恢复手段。
+重新运行：
+
+```bash
+pnpm admin:set-code
+```
+
+选择对应 D1，设置新的自定义管理码即可。这是设计上的恢复手段。
 
 ### Wrangler 不可用时的控制台应急路径
 
-Cloudflare Dashboard → D1 → 对应数据库 → Console。先在本地用以下命令生成管理码和哈希（明文只显示在本地终端）：
+Cloudflare Dashboard → D1 → 对应数据库 → Console。先在本地终端输入以下命令，再输入你想设置的自定义管理码：
 
 ```bash
-node -e "const c=require('crypto');const p='lsa_'+c.randomBytes(32).toString('base64url');console.log('管理码:',p);console.log('SHA-256:',c.createHash('sha256').update(p).digest('hex'));console.log('时间:',new Date().toISOString())"
+node -e "const c=require('crypto'),r=require('readline').createInterface({input:process.stdin,output:process.stdout});r.question('新管理码: ',p=>{console.log('SHA-256:',c.createHash('sha256').update(p).digest('hex'));r.close()})"
 ```
 
 然后在 D1 Console 执行（替换哈希与时间）：
@@ -282,7 +372,7 @@ INSERT INTO admin_config (id, admin_code_hash, session_version, rotated_at)
 VALUES (1, '<SHA-256>', 1, '<UTC ISO 时间>');
 ```
 
-不要把管理码明文粘贴到 Dashboard，也不要把明文写入 SQL 历史。
+不要把管理码明文粘贴到 Dashboard，只填 SHA-256 哈希。
 
 ### 使用最小权限 Token
 
@@ -291,10 +381,12 @@ VALUES (1, '<SHA-256>', 1, '<UTC ISO 时间>');
 ```powershell
 $env:CLOUDFLARE_API_TOKEN = "<D1 最小权限 Token>"
 $env:CLOUDFLARE_ACCOUNT_ID = "<Account ID>"
-pnpm admin:rotate
+pnpm admin:set-code -- --remote
 ```
 
-或在 POSIX shell 中用 `export`。Token 应限定到账号/资源，只授予需要的 D1 编辑权限；不要使用 Global API Key，不把 Token 写进仓库。轮换完成后可立即吊销。
+交互终端会要求确认远端写入；自动化脚本如需跳过，再添加 `--yes`。
+
+或在 POSIX shell 中用 `export`。Token 应限定到账号/资源，只授予需要的 D1 编辑权限；不要使用 Global API Key，不把 Token 写进仓库。修改完成后可立即吊销。
 
 可选环境变量：
 
@@ -310,11 +402,11 @@ pnpm admin:rotate
 - **统一错误**：错误路径不区分管理码错误、兑换码不存在、已用尽、已过期；对外体和状态码一致。
 - **会话**：载荷包含签发时间、过期时间、会话版本和随机 `jti`，用 HMAC-SHA256 签名。后台接口同时校验签名、未过期、D1 当前 `session_version` 与 Cookie 版本一致。
 - **Cookie**：`HttpOnly; Secure; SameSite=Strict; Path=/`，默认 2 小时。轮换管理码递增版本，旧会话立即失效。
-- **CSRF**：所有后台写操作要求 `Origin` 与当前站点同源；同时依赖 SameSite=Strict。
-- **限流**：`/api/redeem` 通过 Cloudflare Rate Limiting binding 按 `CF-Connecting-IP` 限制为 30 次/分钟。该限制在每个 Cloudflare 边缘节点近似计数，不是全球严格配额；核心安全仍依赖高熵管理码、原子扣减和会话版本。binding 异常时有 per-isolate 内存兜底。
+- **CSRF**：所有后台写操作校验 `Origin`；反向代理改写 Origin 时，使用浏览器 `Sec-Fetch-Site: same-origin` 或前端 `X-Requested-With` 自定义头兜底。API 不开放 CORS，跨域 JS 无法携带该自定义头。
+- **限流**：`/api/redeem` 通过 Cloudflare Rate Limiting binding 按 `CF-Connecting-IP` 限制为 30 次/分钟。该限制在每个 Cloudflare 边缘节点近似计数，不是全球严格配额；核心安全仍依赖管理码强度、原子扣减和会话版本。binding 异常时有 per-isolate 内存兜底。
 - **URL 白名单**：目标地址只接受绝对 `http:` / `https:` URL，拒绝 `javascript:`、`data:` 和带用户信息的 URL。
 - **审计**：成功的管理码兑换、后台创建/编辑/删除/退出记录时间、IP、User-Agent；保留最近 1000 条。
-- **无改密接口**：后台没有修改管理码/密码的功能，只能通过本地脚本或 D1 控制台轮换。
+- **无公网改密接口**：后台没有修改管理码的功能，只能通过本地脚本或 D1 控制台修改，避免会话被盗后永久接管后台。
 - **不记录明文**：应用日志不记录兑换码、管理码、请求体或会话密钥。
 - **前端不作为信任边界**：URL、次数、过期时间、会话状态全部以后端校验为准。
 
@@ -322,7 +414,7 @@ pnpm admin:rotate
 
 - Cloudflare 账号开启 2FA，并保护邮箱和恢复方式。
 - API Token 最小权限、限定资源、可随时吊销。
-- 管理码至少 128 bit 熵；系统生成的管理码为 256 bit。
+- 自定义管理码至少使用 20 个随机字符或 4 个随机词；随机模式生成 256 bit 管理码。
 - 兑换码默认由系统生成 192 bit 随机码。自定义兑换码属于高级选项，`LinkStore` 会提示低熵风险。
 - 会话密钥和管理码应分开保存；轮换会话密钥会立即让所有会话失效。
 - 保留 Cloudflare Dashboard 手动修改 D1 的应急路径，但不要把明文写进任何持久文件。
@@ -351,9 +443,14 @@ SESSION_TTL_SECONDS = "7200"
 | `pnpm deploy` | 构建并部署 Worker/Assets |
 | `pnpm db:migrate:local` | 应用本地 D1 迁移 |
 | `pnpm db:migrate:remote` | 应用远端 D1 迁移 |
-| `pnpm admin:rotate` | 轮换远端管理码 |
-| `pnpm admin:rotate -- --local` | 轮换本地开发管理码 |
+| `pnpm admin:set-code` | 交互选择 D1 并设置自定义管理码 |
+| `pnpm admin:set-code -- --local` | 设置本地开发管理码 |
+| `pnpm admin:set-code -- --remote` | 设置远端管理码 |
+| `pnpm admin:set-code -- --remote --generate` | 设置 256 bit 随机管理码 |
+| `pnpm admin:set-code -- --remote --yes` | 自动化场景跳过远端确认（谨慎） |
+| `pnpm admin:rotate` | `admin:set-code` 的兼容别名 |
 | `pnpm typecheck` | Vue 与 Worker TypeScript 检查 |
+| `pnpm admin:set-code -- --help` | 查看脚本参数 |
 
 ## 常见问题排查
 
@@ -368,18 +465,31 @@ SESSION_TTL_SECONDS = "7200"
 1. 远端迁移是否执行：`pnpm db:migrate:remote`
 2. 生产 Secret 是否存在：`pnpm exec wrangler secret list`
 3. `SESSION_SECRET` 是否至少 32 字节
-4. 是否已经执行 `pnpm admin:rotate`
+4. 是否已经执行 `pnpm admin:set-code -- --remote`
 
 如果只是普通兑换码失败而管理码正常，检查 D1 的 `redemption_codes` 表是否存在。
 
+### 管理码提示 `INVALID_CODE` 或用不了
+
+按顺序排查：
+
+1. **写错 D1 目标**：本地 `pnpm dev` 使用本地 D1，部署站点使用远端 D1。  
+   - 本地：`pnpm admin:set-code -- --local`  
+   - 线上：`pnpm admin:set-code -- --remote`
+2. **使用的是修改前的旧管理码**：每次修改都会立即让旧管理码失效。
+3. **管理码区分大小写**，检查是否复制了首尾空格或漏字符。
+4. **是否为当前站点**：确认打开的 URL 对应本次写入的 D1，而不是另一个部署环境。
+5. **`SESSION_SECRET` 缺失**：管理码匹配成功但签发会话失败时，接口会返回 500，而不是进入后台。
+6. **本地 Cookie**：本地开发优先使用 `pnpm dev` 输出的 HTTPS 地址；部分浏览器不会在 HTTP 下保存 `Secure` Cookie。
+
 ### 输入管理码后仍回到首页
 
-- 管理码是否正确，且是否是轮换后的最新管理码。
-- 本地开发必须使用 HTTPS（`pnpm dev`），否则 `Secure` Cookie 不会保存。
+- 管理码是否正确，且是否是修改后的最新管理码。
+- 本地开发必须使用 HTTPS（`pnpm dev`），否则某些浏览器不会保存 `Secure` Cookie。
 - 浏览器是否禁用了 Cookie。
-- 执行一次 `pnpm admin:rotate` 后，旧会话会立即失效，这是预期行为。
+- 修改一次管理码后，旧会话会立即失效，这是预期行为。
 
-### 后台原本正常，轮换管理码后接口全部 401
+### 后台原本正常，修改管理码后接口全部 401
 
 这是设计行为。`session_version` 已递增，旧 Cookie 必须失效。重新在首页输入新管理码即可。
 
@@ -433,7 +543,7 @@ macOS / Linux：
 4. 输入错误管理码与无效兑换码，响应体、状态码一致。
 5. 未登录访问 `/api/admin/codes` 返回 401；过期/轮换后的旧 Cookie 也返回 401。
 6. 对同一个剩余 1 次的码并发请求，只有一个响应为成功；这是由条件 UPDATE 的数据库原子性保证的。
-7. 执行 `pnpm admin:rotate` 后，旧管理码失效且旧后台会话在下一次请求时失效，新管理码只显示一次。
+7. 执行 `pnpm admin:set-code` 并设置自定义管理码后，新管理码可以登录，旧管理码与旧后台会话立即失效。
 8. 后台可以创建、编辑目标/次数/有效期、停用/启用、删除，并显示使用次数、最大次数、过期、创建、最后使用时间。
 
 ## 说明

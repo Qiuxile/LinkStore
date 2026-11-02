@@ -137,6 +137,9 @@ async function boot(): Promise<void> {
   try {
     await getSession();
     booting.value = false;
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      openCreate();
+    }
     await loadCodes();
   } catch (error) {
     booting.value = false;
@@ -163,6 +166,7 @@ onBeforeUnmount(() => {
 });
 
 function openCreate(): void {
+  console.info("[LinkStore] open create dialog");
   formMode.value = "create";
   editingCode.value = null;
   formError.value = "";
@@ -572,28 +576,25 @@ async function handleLogout(): Promise<void> {
 <style scoped>
 .admin-page {
   min-height: 100svh;
-  background:
-    radial-gradient(circle at 90% -10%, rgba(205, 230, 217, 0.65), transparent 30%),
-    linear-gradient(180deg, #f7f5ef 0%, var(--canvas) 42%, #f1efe7 100%);
+  background: #050505;
 }
 
 .admin-header {
   position: sticky;
   z-index: 20;
   top: 0;
-  border-bottom: 1px solid rgba(23, 33, 28, 0.09);
-  background: rgba(247, 245, 239, 0.86);
-  backdrop-filter: blur(18px);
+  border-bottom: 1px solid #232323;
+  background: #050505;
 }
 
 .admin-header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(100%, 1220px);
-  min-height: 68px;
+  width: min(100%, 1160px);
+  min-height: 62px;
   margin: 0 auto;
-  padding: 0 32px;
+  padding: 0 28px;
 }
 
 .header-actions {
@@ -605,16 +606,18 @@ async function handleLogout(): Promise<void> {
 .admin-role {
   padding-right: 14px;
   border-right: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  color: #737373;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .admin-main {
-  width: min(100%, 1220px);
+  width: min(100%, 1160px);
   margin: 0 auto;
-  padding: 52px 32px 64px;
+  padding: 44px 28px 56px;
 }
 
 .admin-hero {
@@ -622,37 +625,38 @@ async function handleLogout(): Promise<void> {
   align-items: flex-end;
   justify-content: space-between;
   gap: 28px;
-  margin-bottom: 30px;
+  margin-bottom: 26px;
 }
 
 .eyebrow {
-  margin: 0 0 9px;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.14em;
+  margin: 0 0 10px;
+  color: #6f6f6f;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .admin-hero h1 {
   margin: 0;
-  color: var(--ink);
-  font-size: clamp(34px, 4vw, 48px);
-  font-weight: 660;
-  letter-spacing: -0.045em;
-  line-height: 1.06;
+  color: #f2f2f2;
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 
 .hero-description {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .create-button {
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: 40px;
+  padding: 0 16px;
   white-space: nowrap;
 }
 
@@ -667,13 +671,9 @@ async function handleLogout(): Promise<void> {
 
 .panel {
   overflow: hidden;
-  border: 1px solid rgba(23, 33, 28, 0.1);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.87);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 18px 48px rgba(28, 40, 33, 0.065);
-  backdrop-filter: blur(10px);
+  border: 1px solid #232323;
+  border-radius: 4px;
+  background: #080808;
 }
 
 .panel-header {
@@ -681,29 +681,29 @@ async function handleLogout(): Promise<void> {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 22px 24px;
-  border-bottom: 1px solid var(--line);
+  padding: 18px 22px;
+  border-bottom: 1px solid #232323;
 }
 
 .panel-header h2 {
   margin: 0;
-  font-size: 17px;
-  font-weight: 680;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .panel-header p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
 .btn-small {
-  min-height: 32px;
-  padding: 0 11px;
-  border-radius: 8px;
-  font-size: 12px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 2px;
+  font-size: 10px;
 }
 
 .btn-small .spinner {
@@ -723,13 +723,14 @@ table {
 }
 
 th {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(250, 249, 245, 0.8);
-  color: var(--faint);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.055em;
+  padding: 11px 16px;
+  border-bottom: 1px solid #232323;
+  background: #0a0a0a;
+  color: #616161;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -745,10 +746,10 @@ td:last-child {
 }
 
 td {
-  padding: 15px 16px;
-  border-bottom: 1px solid rgba(23, 33, 28, 0.075);
+  padding: 14px 16px;
+  border-bottom: 1px solid #1c1c1c;
   vertical-align: middle;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 tbody tr:last-child td {
@@ -760,7 +761,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: rgba(240, 248, 244, 0.48);
+  background: #0d0d0d;
 }
 
 .id-cell {
@@ -775,8 +776,8 @@ tbody tr:hover {
   display: block;
   max-width: 250px;
   overflow: hidden;
-  color: var(--ink);
-  font-size: 13px;
+  color: #d8d8d8;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -794,8 +795,8 @@ tbody tr:hover {
 }
 
 .usage-numbers strong {
-  font-size: 14px;
-  font-weight: 680;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .usage-numbers span {
@@ -809,31 +810,31 @@ tbody tr:hover {
   height: 5px;
   overflow: hidden;
   border: 0;
-  border-radius: 999px;
+  border-radius: 0;
   appearance: none;
-  background: #edede7;
+  background: #222222;
 }
 
 .usage-progress::-webkit-progress-bar {
-  border-radius: 999px;
-  background: #edede7;
+  border-radius: 0;
+  background: #222222;
 }
 
 .usage-progress::-webkit-progress-value {
-  border-radius: 999px;
-  background: var(--accent);
+  border-radius: 0;
+  background: #e8e8e8;
 }
 
 .usage-progress::-moz-progress-bar {
-  border-radius: 999px;
-  background: var(--accent);
+  border-radius: 0;
+  background: #e8e8e8;
 }
 
 .date-cell {
   display: table-cell;
   min-width: 145px;
-  color: var(--muted);
-  font-size: 12px;
+  color: #808080;
+  font-size: 10px;
   line-height: 1.65;
   white-space: nowrap;
 }
@@ -872,7 +873,7 @@ tbody tr:hover {
 
 .panel-state p {
   margin: 0;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .panel-state .spinner {
@@ -884,8 +885,9 @@ tbody tr:hover {
 .empty-state h3 {
   margin: 2px 0 0;
   color: var(--ink);
-  font-size: 17px;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .empty-state p {
@@ -896,14 +898,15 @@ tbody tr:hover {
 
 .empty-mark {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border: 1px dashed rgba(11, 107, 79, 0.32);
-  border-radius: 13px;
-  background: var(--accent-faint);
-  color: var(--accent);
-  font-size: 23px;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  background: transparent;
+  color: #bdbdbd;
+  font-family: var(--font-mono);
+  font-size: 18px;
   font-weight: 300;
 }
 
@@ -912,11 +915,13 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 14px 24px;
-  border-top: 1px solid var(--line);
-  background: rgba(250, 249, 245, 0.72);
-  color: var(--muted);
-  font-size: 12px;
+  padding: 12px 22px;
+  border-top: 1px solid #232323;
+  background: #080808;
+  color: #707070;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
 }
 
 .pagination {
@@ -925,14 +930,18 @@ tbody tr:hover {
 }
 
 .admin-footnote {
-  margin: 20px 2px 0;
-  color: var(--faint);
-  font-size: 11px;
+  margin: 18px 2px 0;
+  color: #5a5a5a;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.03em;
   line-height: 1.6;
   text-align: center;
 }
 
 .admin-boot {
+  position: relative;
+  z-index: 1;
   display: flex;
   min-height: 100svh;
   flex-direction: column;
@@ -940,24 +949,19 @@ tbody tr:hover {
   justify-content: center;
   gap: 28px;
   padding: 28px;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(198, 229, 214, 0.58), transparent 30%),
-    linear-gradient(145deg, #f7f5ef, #f0eee5);
 }
 
 .boot-card {
   display: flex;
-  width: min(100%, 390px);
+  width: min(100%, 360px);
   align-items: center;
   justify-content: center;
-  gap: 11px;
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: var(--shadow-md);
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #080808;
   color: var(--muted);
-  backdrop-filter: blur(16px);
 }
 
 .boot-card .spinner {
@@ -966,7 +970,7 @@ tbody tr:hover {
 
 .boot-card p {
   margin: 0;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .boot-error-card {
@@ -979,8 +983,9 @@ tbody tr:hover {
 .boot-error-card h1 {
   margin: 0;
   color: var(--ink);
-  font-size: 21px;
-  letter-spacing: -0.03em;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 .boot-error-card p {

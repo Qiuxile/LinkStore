@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import type { AdminCode, CodeFormValues } from "../types";
 import ModalShell from "./ModalShell.vue";
 
@@ -31,6 +31,7 @@ const disabled = ref(props.initial?.disabled ?? false);
 const customMode = ref(false);
 const customCode = ref("");
 const localError = ref("");
+const errorElement = ref<HTMLElement | null>(null);
 
 const isEdit = computed(() => props.mode === "edit");
 const minDateTime = computed(() =>
@@ -57,8 +58,12 @@ function validate(): CodeFormValues | null {
   try {
     parsedUrl = new URL(rawUrl);
   } catch {
-    localError.value = "目标地址必须是完整的 http:// 或 https:// 地址。";
-    return null;
+    try {
+      parsedUrl = new URL(`https://${rawUrl}`);
+    } catch {
+      localError.value = "目标地址必须是完整的 http:// 或 https:// 地址。";
+      return null;
+    }
   }
 
   if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
@@ -116,11 +121,27 @@ function validate(): CodeFormValues | null {
   };
 }
 
-function submit(): void {
+async function submit(): Promise<void> {
+  console.info("[LinkStore] create submit clicked");
   if (props.submitting) return;
   const values = validate();
-  if (values) emit("submit", values);
+  if (!values) {
+    console.info("[LinkStore] create validation failed", localError.value);
+    await nextTick();
+    errorElement.value?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  emit("submit", values);
 }
+
+watch(
+  () => props.serverError,
+  async (message) => {
+    if (!message) return;
+    await nextTick();
+    errorElement.value?.scrollIntoView({ block: "nearest" });
+  },
+);
 </script>
 
 <template>
@@ -132,6 +153,16 @@ function submit(): void {
     @close="emit('close')"
   >
     <form id="code-form" class="code-form" novalidate @submit.prevent="submit">
+      <p
+        v-if="localError || serverError"
+        ref="errorElement"
+        class="form-error"
+        role="alert"
+        tabindex="-1"
+      >
+        {{ localError || serverError }}
+      </p>
+
       <div class="field">
         <label for="code-target">目标地址</label>
         <input
@@ -146,7 +177,7 @@ function submit(): void {
           :disabled="submitting"
           autofocus
         />
-        <p class="field-hint">保存后用户兑换成功会跳转到此地址。</p>
+        <p class="field-hint">保存后用户兑换成功会跳转到此地址；可以省略 https://。</p>
       </div>
 
       <div class="form-grid">
@@ -217,9 +248,6 @@ function submit(): void {
         </div>
       </div>
 
-      <p v-if="localError || serverError" class="field-error" role="alert">
-        {{ localError || serverError }}
-      </p>
     </form>
 
     <template #footer>
@@ -231,7 +259,12 @@ function submit(): void {
       >
         取消
       </button>
-      <button class="btn btn-primary" type="submit" form="code-form" :disabled="submitting">
+      <button
+        class="btn btn-primary"
+        type="button"
+        :disabled="submitting"
+        @click="submit"
+      >
         <span v-if="submitting" class="spinner" aria-hidden="true"></span>
         <span>{{ isEdit ? "保存修改" : "创建兑换码" }}</span>
       </button>
@@ -243,7 +276,7 @@ function submit(): void {
 .code-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .form-grid {
@@ -258,15 +291,15 @@ function submit(): void {
   align-items: flex-start;
   gap: 11px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .switch-row {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  background: #0d0d0d;
 }
 
 .switch-row input,
@@ -284,22 +317,22 @@ function submit(): void {
 }
 
 .switch-row strong {
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .switch-row small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .advanced-box {
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  padding: 15px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
+  gap: 12px;
+  padding: 13px;
+  border: 1px dashed #333333;
+  border-radius: 3px;
+  background: #0d0d0d;
 }
 
 .custom-code-field {
@@ -309,13 +342,23 @@ function submit(): void {
 }
 
 .mono-input {
-  font-family:
-    "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
 }
 
 .warning-hint {
-  color: var(--warn);
+  color: #a8a8a8;
+}
+
+.form-error {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #666666;
+  border-radius: 2px;
+  background: #111111;
+  color: #f2f2f2;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 @media (max-width: 560px) {
