@@ -1,0 +1,27 @@
+name = "linkstore"
+main = "src/worker/index.ts"
+compatibility_date = "2026-01-01"
+
+# Vite builds the Vue app into dist/client. Workers Assets serves it.
+[assets]
+directory = "./dist/client"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "linkstore-db"
+# Replace this with the id printed by `wrangler d1 create linkstore-db`.
+database_id = "3c207fd3-6369-4191-9d5c-52d5d640345b"
+migrations_dir = "migrations"
+
+# Cloudflare's built-in per-IP rate limiter. 30 attempts per minute.
+# namespace_id must be unique within the account to avoid sharing counters.
+[[ratelimits]]
+name = "REDEEM_RATE_LIMITER"
+namespace_id = "20261102"
+simple = { limit = 30, period = 60 }
+
+[vars]
+SESSION_TTL_SECONDS = "7200"

@@ -1,0 +1,31 @@
+{
+  "name": "linkstore",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm build:client && wrangler dev --local-protocol https",
+    "build:client": "vite build",
+    "build": "pnpm typecheck && pnpm build:client",
+    "deploy": "pnpm build && wrangler deploy",
+    "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p tsconfig.json",
+    "db:migrate:local": "wrangler d1 migrations apply linkstore-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply linkstore-db --remote",
+    "admin:rotate": "node scripts/rotate-admin-code.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261031.1",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.5",
+    "vue-tsc": "^3.3.14",
+    "wrangler": "4.156.0"
+  }
+}

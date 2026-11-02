@@ -1,0 +1,4 @@
+# Generate with:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+# Then copy this file to .dev.vars (never commit it).
+SESSION_SECRET=replace-with-at-least-32-random-characters
